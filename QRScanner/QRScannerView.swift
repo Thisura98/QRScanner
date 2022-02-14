@@ -214,7 +214,7 @@ public class QRScannerView: UIView {
         session.addInput(videoInput)
         metadataOutput.setMetadataObjectsDelegate(self, queue: metadataQueue)
         session.addOutput(metadataOutput)
-        metadataOutput.metadataObjectTypes = [.qr]
+        metadataOutput.metadataObjectTypes = [.qr,.pdf417]
 
         videoDataOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
         videoDataOutput.setSampleBufferDelegate(self, queue: videoDataQueue)
@@ -340,16 +340,23 @@ extension QRScannerView: AVCaptureMetadataOutputObjectsDelegate {
     public func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
         guard metadataOutputEnable else { return }
         if let metadataObject = metadataObjects.first {
-            guard let readableObject = previewLayer?.transformedMetadataObject(for: metadataObject) as? AVMetadataMachineReadableCodeObject, metadataObject.type == .qr else { return }
-            guard let stringValue = readableObject.stringValue else { return }
-            metadataOutputEnable = false
-            videoDataOutputEnable = true
+            
+            if metadataObject.type == .qr || metadataObject.type == .pdf417{
+                guard let readableObject = previewLayer?.transformedMetadataObject(for: metadataObject) as? AVMetadataMachineReadableCodeObject else {
+                    print("return :", metadataObject.type.rawValue ?? "")
+                    return }
+                guard let stringValue = readableObject.stringValue else { return }
+                metadataOutputEnable = false
+                videoDataOutputEnable = true
 
-            DispatchQueue.main.async { [weak self] in
-                guard let strongSelf = self else { return }
-                strongSelf.setTorchActive(isOn: false)
-                strongSelf.moveImageViews(qrCode: stringValue, corners: readableObject.corners)
+                DispatchQueue.main.async { [weak self] in
+                    guard let strongSelf = self else { return }
+                    strongSelf.setTorchActive(isOn: false)
+                    strongSelf.moveImageViews(qrCode: stringValue, corners: readableObject.corners)
+                }
             }
+            
+           
         }
     }
 }
